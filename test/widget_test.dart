@@ -1,142 +1,126 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cookie_clicker/main.dart';
+import 'package:cookie_clicker/models/cookie_model.dart';
+import 'package:cookie_clicker/models/theme_model.dart';
 
 void main() {
-  group('Semaine 1 - Clic de base', () {
-    testWidgets(
-      'Le compteur demarre a 0 cookies',
-      (tester) async {
-        await tester.pumpWidget(const CookieClickerApp());
-        expect(find.text('0 cookies'), findsOneWidget);
-      },
-    );
+  group('Semaine 2 - Provider', () {
+    // --- Tests unitaires CookieModel ---
+
+    test('CookieModel demarre a 0', () {
+      final model = CookieModel();
+      expect(model.cookies, 0);
+      expect(model.totalClicks, 0);
+      expect(model.firstClickAt, isNull);
+    });
+
+    test('clickCookie incremente cookies et totalClicks', () {
+      final model = CookieModel();
+      model.clickCookie();
+      expect(model.cookies, 1);
+      expect(model.totalClicks, 1);
+      expect(model.firstClickAt, isNotNull);
+    });
+
+    test('addCookies ajoute le bon montant', () {
+      final model = CookieModel();
+      model.addCookies(10);
+      expect(model.cookies, 10);
+    });
+
+    test('reset remet tout a zero', () {
+      final model = CookieModel();
+      model.clickCookie();
+      model.clickCookie();
+      model.reset();
+      expect(model.cookies, 0);
+      expect(model.totalClicks, 0);
+      expect(model.firstClickAt, isNull);
+    });
+
+    test('formattedCookies gere le singulier', () {
+      final model = CookieModel();
+      model.clickCookie();
+      expect(model.formattedCookies, '1 cookie');
+    });
+
+    test('formattedCookies gere le pluriel', () {
+      final model = CookieModel();
+      expect(model.formattedCookies, '0 cookies');
+      model.addCookies(5);
+      expect(model.formattedCookies, '5 cookies');
+    });
+
+    test('nextMilestone retourne le bon palier', () {
+      final model = CookieModel();
+      expect(model.nextMilestone, 100);
+      model.addCookies(100);
+      expect(model.nextMilestone, 500);
+      model.addCookies(9900);
+      expect(model.nextMilestone, isNull);
+    });
+
+    test('clickCookie retourne le palier atteint', () {
+      final model = CookieModel();
+      model.addCookies(99);
+      final milestone = model.clickCookie();
+      expect(milestone, 100);
+    });
+
+    // --- Tests unitaires ThemeModel ---
+
+    test('ThemeModel demarre en light', () {
+      final model = ThemeModel();
+      expect(model.themeMode, ThemeMode.light);
+    });
+
+    test('toggleTheme bascule en dark puis light', () {
+      final model = ThemeModel();
+      model.toggleTheme();
+      expect(model.themeMode, ThemeMode.dark);
+      model.toggleTheme();
+      expect(model.themeMode, ThemeMode.light);
+    });
+
+    // --- Tests widget ---
 
     testWidgets(
-      'Un clic incremente a 1 cookie (singulier)',
+      'Le Drawer s ouvre et contient les liens',
       (tester) async {
         await tester.pumpWidget(const CookieClickerApp());
 
-        await tester.tap(find.text('🍪'));
+        // Ouvrir le drawer
+        await tester.tap(find.byIcon(Icons.menu));
         await tester.pumpAndSettle();
 
-        expect(find.text('1 cookie'), findsOneWidget);
+        expect(find.text('Accueil'), findsOneWidget);
+        expect(find.text('Statistiques'), findsOneWidget);
+        expect(find.text('À propos'), findsOneWidget);
+        expect(find.text('Mode sombre'), findsOneWidget);
       },
     );
 
     testWidgets(
-      'Deux clics affichent 2 cookies (pluriel)',
+      'Navigation vers Statistiques fonctionne',
       (tester) async {
         await tester.pumpWidget(const CookieClickerApp());
 
-        await tester.tap(find.text('🍪'));
-        await tester.pump();
-        await tester.tap(find.text('🍪'));
+        await tester.tap(find.byIcon(Icons.menu));
         await tester.pumpAndSettle();
 
-        expect(find.text('2 cookies'), findsOneWidget);
-      },
-    );
-
-    testWidgets(
-      '5 clics affichent 5 cookies',
-      (tester) async {
-        await tester.pumpWidget(const CookieClickerApp());
-
-        for (var i = 0; i < 5; i++) {
-          await tester.tap(find.text('🍪'));
-          await tester.pump();
-        }
+        await tester.tap(find.text('Statistiques'));
         await tester.pumpAndSettle();
 
-        expect(find.text('5 cookies'), findsOneWidget);
+        expect(find.text('Clics total'), findsOneWidget);
       },
     );
 
     testWidgets(
-      'Le bouton reset remet le compteur a 0',
+      'Le bouton bonus est present',
       (tester) async {
         await tester.pumpWidget(const CookieClickerApp());
-
-        // Cliquer 3 fois
-        for (var i = 0; i < 3; i++) {
-          await tester.tap(find.text('🍪'));
-          await tester.pump();
-        }
-
-        // Appuyer sur le bouton reset
-        await tester.tap(find.byIcon(Icons.restart_alt));
-        await tester.pumpAndSettle();
-
-        // Confirmer dans le dialog
-        await tester.tap(find.text('Confirmer'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('0 cookies'), findsOneWidget);
-      },
-    );
-
-    testWidgets(
-      'Annuler le reset conserve les cookies',
-      (tester) async {
-        await tester.pumpWidget(const CookieClickerApp());
-
-        for (var i = 0; i < 3; i++) {
-          await tester.tap(find.text('🍪'));
-          await tester.pump();
-        }
-
-        await tester.tap(find.byIcon(Icons.restart_alt));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Annuler'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('3 cookies'), findsOneWidget);
-      },
-    );
-
-    testWidgets(
-      'Le bouton theme est present',
-      (tester) async {
-        await tester.pumpWidget(const CookieClickerApp());
-        expect(
-          find.byIcon(Icons.brightness_6),
-          findsOneWidget,
-        );
-      },
-    );
-
-    testWidgets(
-      'AnimatedSwitcher est present dans l arbre',
-      (tester) async {
-        await tester.pumpWidget(const CookieClickerApp());
-        expect(
-          find.byType(AnimatedSwitcher),
-          findsOneWidget,
-        );
-      },
-    );
-
-    testWidgets(
-      'Le message de bienvenue est affiche',
-      (tester) async {
-        await tester.pumpWidget(const CookieClickerApp());
-        expect(
-          find.text('Bienvenue dans Clicky Cookie !'),
-          findsOneWidget,
-        );
-      },
-    );
-
-    testWidgets(
-      'Le Tooltip du cookie est present',
-      (tester) async {
-        await tester.pumpWidget(const CookieClickerApp());
-        expect(
-          find.byTooltip('Clique pour gagner un cookie'),
-          findsOneWidget,
-        );
+        expect(find.text('Bonus +10 🍪'), findsOneWidget);
       },
     );
   });
