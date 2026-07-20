@@ -1,6 +1,7 @@
 /// Modèle de sauvegarde sérialisable en JSON.
 ///
-/// Centralise toutes les données à persister.
+/// Centralise toutes les données à persister,
+/// y compris les prestiges et achievements.
 class GameSave {
   final int cookies;
   final int totalClicks;
@@ -9,6 +10,8 @@ class GameSave {
   final Map<String, int> upgradeQuantities;
   final String playerName;
   final String? lastSavedAt;
+  final int prestiges;
+  final List<String> unlockedAchievements;
 
   const GameSave({
     this.cookies = 0,
@@ -18,9 +21,10 @@ class GameSave {
     this.upgradeQuantities = const {},
     this.playerName = 'Joueur',
     this.lastSavedAt,
+    this.prestiges = 0,
+    this.unlockedAchievements = const [],
   });
 
-  /// Crée un [GameSave] depuis un objet JSON.
   factory GameSave.fromJson(Map<String, dynamic> json) {
     return GameSave(
       cookies: (json['cookies'] as int?) ?? 0,
@@ -35,10 +39,14 @@ class GameSave {
       playerName:
           (json['playerName'] as String?) ?? 'Joueur',
       lastSavedAt: json['lastSavedAt'] as String?,
+      prestiges: (json['prestiges'] as int?) ?? 0,
+      unlockedAchievements:
+          (json['unlockedAchievements'] as List<dynamic>?)
+                  ?.cast<String>() ??
+              [],
     );
   }
 
-  /// Convertit en objet JSON.
   Map<String, dynamic> toJson() {
     return {
       'cookies': cookies,
@@ -48,6 +56,8 @@ class GameSave {
       'upgrades': upgradeQuantities,
       'playerName': playerName,
       'lastSavedAt': lastSavedAt,
+      'prestiges': prestiges,
+      'unlockedAchievements': unlockedAchievements,
     };
   }
 }

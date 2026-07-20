@@ -18,7 +18,7 @@ class UpgradeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final model = context.watch<CookieModel>();
     final canBuy = model.cookies >= upgrade.cost;
-    final progress = (model.cookies / upgrade.cost).clamp(
+    final progress = (model.cookies / upgrade.cost.toDouble()).clamp(
       0.0,
       1.0,
     );
@@ -27,6 +27,7 @@ class UpgradeCard extends StatelessWidget {
         upgrade.cookiesPerSecond * upgrade.quantity;
     final totalCpc =
         upgrade.cookiesPerClickBonus * upgrade.quantity;
+    final cost = upgrade.cost;
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -48,7 +49,7 @@ class UpgradeCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Coût : ${upgrade.cost} 🍪',
+                  'Coût : $cost 🍪',
                 ),
                 if (upgrade.cookiesPerSecond > 0)
                   Text(
@@ -135,7 +136,7 @@ class UpgradeCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(upgrade.description),
             const Divider(height: 24),
-            Text('Coût : ${upgrade.cost} cookies'),
+            Text('Coût : ${upgrade.cost} cookies (base : ${upgrade.baseCost})'),
             if (upgrade.cookiesPerSecond > 0)
               Text(
                 'Production : +${upgrade.cookiesPerSecond} '

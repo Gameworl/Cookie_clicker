@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'models/cookie_model.dart';
 import 'models/theme_model.dart';
-import 'screens/about_screen.dart';
+import 'screens/achievements_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/shop_screen.dart';
@@ -117,6 +117,18 @@ class _MainShellState extends State<MainShell> {
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                   ),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.emoji_events),
+            tooltip: 'Succès',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AchievementsScreen(),
                 ),
               );
             },

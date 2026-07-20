@@ -79,6 +79,22 @@ class StatsScreen extends StatelessWidget {
           title: 'Upgrades possédés',
           value: '${model.upgrades.fold<int>(0, (s, u) => s + u.quantity)}',
         ),
+        _StatCard(
+          icon: Icons.star,
+          title: 'Prestiges',
+          value: '${model.prestiges}',
+        ),
+        _StatCard(
+          icon: Icons.auto_awesome,
+          title: 'Multiplicateur',
+          value: 'x${model.prestigeMultiplier.toStringAsFixed(1)}',
+        ),
+        _StatCard(
+          icon: Icons.emoji_events,
+          title: 'Succès débloqués',
+          value: '${model.unlockedAchievementCount}'
+              '/${model.achievements.length}',
+        ),
         if (model.frenzyActive)
           _StatCard(
             icon: Icons.bolt,

@@ -1,64 +1,58 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 /// Catégorie d'une amélioration.
 enum UpgradeCategory {
-  /// Produit des cookies automatiquement (cookies/seconde).
   production,
-
-  /// Augmente les cookies gagnés par clic.
   bonus,
 }
 
 /// Représente une amélioration achetable dans la boutique.
+///
+/// Le coût augmente de 15% à chaque achat via la propriété
+/// calculée [cost] (formule : `baseCost * 1.15^quantity`).
 class Upgrade {
-  /// Identifiant unique.
   final String id;
-
-  /// Nom affiché dans la boutique.
   final String name;
-
-  /// Description de l'amélioration.
   final String description;
-
-  /// Coût en cookies pour acheter une unité.
-  final int cost;
-
-  /// Cookies produits par seconde par unité (production).
+  final int baseCost;
   final int cookiesPerSecond;
-
-  /// Cookies ajoutés par clic par unité (bonus).
   final int cookiesPerClickBonus;
-
-  /// Icône Material associée.
   final IconData icon;
-
-  /// Catégorie de l'amélioration.
   final UpgradeCategory category;
 
-  /// Nombre d'unités possédées.
+  /// Seuil de cookies totaux pour que l'upgrade apparaisse.
+  /// Si 0, toujours visible.
+  final int unlockThreshold;
+
   int quantity;
 
   Upgrade({
     required this.id,
     required this.name,
     required this.description,
-    required this.cost,
+    required this.baseCost,
     this.cookiesPerSecond = 0,
     this.cookiesPerClickBonus = 0,
     required this.icon,
     required this.category,
+    this.unlockThreshold = 0,
     this.quantity = 0,
   });
+
+  /// Coût actuel avec la formule exponentielle.
+  int get cost => (baseCost * pow(1.15, quantity)).ceil();
 }
 
-/// Liste des améliorations de production.
+/// Améliorations de production par défaut.
 List<Upgrade> defaultProductionUpgrades() {
   return [
     Upgrade(
       id: 'cursor',
       name: 'Curseur',
       description: 'Un petit curseur qui clique tout seul.',
-      cost: 10,
+      baseCost: 10,
       cookiesPerSecond: 1,
       icon: Icons.mouse,
       category: UpgradeCategory.production,
@@ -67,7 +61,7 @@ List<Upgrade> defaultProductionUpgrades() {
       id: 'grandma',
       name: 'Grand-mère',
       description: 'Une gentille mamie qui fait des cookies.',
-      cost: 50,
+      baseCost: 50,
       cookiesPerSecond: 5,
       icon: Icons.elderly,
       category: UpgradeCategory.production,
@@ -76,22 +70,73 @@ List<Upgrade> defaultProductionUpgrades() {
       id: 'farm',
       name: 'Ferme',
       description: 'Cultive des cookies dans les champs.',
-      cost: 200,
+      baseCost: 200,
       cookiesPerSecond: 20,
       icon: Icons.agriculture,
       category: UpgradeCategory.production,
+      unlockThreshold: 100,
+    ),
+    Upgrade(
+      id: 'mine',
+      name: 'Mine',
+      description: 'Extrait des cookies sous terre.',
+      baseCost: 1000,
+      cookiesPerSecond: 100,
+      icon: Icons.hardware,
+      category: UpgradeCategory.production,
+      unlockThreshold: 500,
+    ),
+    Upgrade(
+      id: 'factory',
+      name: 'Usine',
+      description: 'Produit des cookies en masse.',
+      baseCost: 5000,
+      cookiesPerSecond: 500,
+      icon: Icons.factory,
+      category: UpgradeCategory.production,
+      unlockThreshold: 2500,
+    ),
+    Upgrade(
+      id: 'lab',
+      name: 'Labo',
+      description: 'Recherche de nouveaux types de cookies.',
+      baseCost: 25000,
+      cookiesPerSecond: 2500,
+      icon: Icons.science,
+      category: UpgradeCategory.production,
+      unlockThreshold: 10000,
+    ),
+    Upgrade(
+      id: 'portal',
+      name: 'Portail',
+      description: 'Importe des cookies d\'autres dimensions.',
+      baseCost: 100000,
+      cookiesPerSecond: 10000,
+      icon: Icons.door_front_door,
+      category: UpgradeCategory.production,
+      unlockThreshold: 50000,
+    ),
+    Upgrade(
+      id: 'time_machine',
+      name: 'Machine temporelle',
+      description: 'Récupère les cookies du passé et du futur.',
+      baseCost: 500000,
+      cookiesPerSecond: 50000,
+      icon: Icons.access_time_filled,
+      category: UpgradeCategory.production,
+      unlockThreshold: 200000,
     ),
   ];
 }
 
-/// Liste des améliorations bonus (cookies par clic).
+/// Améliorations bonus par défaut.
 List<Upgrade> defaultBonusUpgrades() {
   return [
     Upgrade(
       id: 'better_click',
       name: 'Meilleur clic',
       description: 'Chaque clic rapporte 1 cookie de plus.',
-      cost: 25,
+      baseCost: 25,
       cookiesPerClickBonus: 1,
       icon: Icons.ads_click,
       category: UpgradeCategory.bonus,
@@ -100,10 +145,11 @@ List<Upgrade> defaultBonusUpgrades() {
       id: 'super_click',
       name: 'Super clic',
       description: 'Chaque clic rapporte 5 cookies de plus.',
-      cost: 150,
+      baseCost: 150,
       cookiesPerClickBonus: 5,
       icon: Icons.bolt,
       category: UpgradeCategory.bonus,
+      unlockThreshold: 50,
     ),
   ];
 }

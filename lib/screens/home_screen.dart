@@ -97,6 +97,35 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  void _showPrestigeDialog(CookieModel model) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('🌟 Prestige'),
+        content: Text(
+          'Tu vas remettre tes cookies et upgrades à zéro.\n\n'
+          'En échange, ton multiplicateur passera de '
+          'x${model.prestigeMultiplier.toStringAsFixed(1)} '
+          'à x${(model.prestigeMultiplier + 0.1).toStringAsFixed(1)}.\n\n'
+          'Ce bonus s\'applique à tous tes gains.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () {
+              model.prestige();
+              Navigator.pop(context);
+            },
+            child: const Text('Prestige !'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final model = context.watch<CookieModel>();
@@ -194,6 +223,29 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ],
               ),
+              // Prestige
+              if (model.canPrestige) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => _showPrestigeDialog(model),
+                  icon: const Icon(Icons.star),
+                  label: Text(
+                    'Prestige (x${model.prestigeMultiplier.toStringAsFixed(1)}'
+                    ' → x${(model.prestigeMultiplier + 0.1).toStringAsFixed(1)})',
+                  ),
+                ),
+              ],
+              if (model.prestiges > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Multiplicateur : x${model.prestigeMultiplier.toStringAsFixed(1)}'
+                  ' (${model.prestiges} prestiges)',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Colors.purple),
+                ),
+              ],
               const SizedBox(height: 16),
               // Journal des dernières actions
               if (model.log.isNotEmpty)

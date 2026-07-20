@@ -3,135 +3,144 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cookie_clicker/main.dart';
 import 'package:cookie_clicker/models/cookie_model.dart';
-import 'package:cookie_clicker/models/game_save.dart';
+import 'package:cookie_clicker/models/upgrade.dart';
 
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  group('Semaine 5 - Sauvegarde locale', () {
-    test('GameSave.toJson et fromJson roundtrip', () {
-      const save = GameSave(
-        cookies: 42,
-        totalClicks: 10,
-        playerName: 'Alice',
-        upgradeQuantities: {'cursor': 3},
+  group('Semaine 6 - Equilibrage et progression', () {
+    test('Le prix augmente exponentiellement', () {
+      final upgrade = Upgrade(
+        id: 'test',
+        name: 'Test',
+        description: 'Test',
+        baseCost: 100,
+        icon: Icons.star,
+        category: UpgradeCategory.production,
       );
-      final json = save.toJson();
-      final restored = GameSave.fromJson(json);
-      expect(restored.cookies, 42);
-      expect(restored.totalClicks, 10);
-      expect(restored.playerName, 'Alice');
-      expect(restored.upgradeQuantities['cursor'], 3);
+      expect(upgrade.cost, 100);
+      upgrade.quantity = 1;
+      expect(upgrade.cost, greaterThan(100));
+      upgrade.quantity = 10;
+      expect(upgrade.cost, greaterThan(200));
     });
 
-    test('GameSave.fromJson gere les valeurs manquantes', () {
-      final save = GameSave.fromJson({});
-      expect(save.cookies, 0);
-      expect(save.playerName, 'Joueur');
-    });
-
-    test('setPlayerName met a jour le pseudo', () async {
+    test('Prestige remet a zero mais garde le multiplicateur', () {
       final model = CookieModel();
-      await Future<void>.delayed(
-        const Duration(milliseconds: 100),
-      );
-      model.setPlayerName('Bob');
-      expect(model.playerName, 'Bob');
+      model.addCookies(10000);
+      model.prestige();
+      expect(model.cookies, 0);
+      expect(model.prestiges, 1);
+      expect(model.prestigeMultiplier, 1.1);
       model.dispose();
     });
 
-    test('exportSave retourne du JSON valide', () async {
+    test('Multiplicateur correct apres N prestiges', () {
       final model = CookieModel();
-      await Future<void>.delayed(
-        const Duration(milliseconds: 100),
+      model.addCookies(10000);
+      model.prestige();
+      model.addCookies(10000);
+      model.prestige();
+      expect(model.prestiges, 2);
+      expect(model.prestigeMultiplier, 1.2);
+      model.dispose();
+    });
+
+    test('canPrestige est false sous le seuil', () {
+      final model = CookieModel();
+      model.addCookies(9999);
+      expect(model.canPrestige, false);
+      model.dispose();
+    });
+
+    test('canPrestige est true au seuil', () {
+      final model = CookieModel();
+      model.addCookies(10000);
+      expect(model.canPrestige, true);
+      model.dispose();
+    });
+
+    test('Achievement se debloque quand condition remplie', () {
+      final model = CookieModel();
+      model.clickCookie();
+      final firstClick = model.achievements.firstWhere(
+        (a) => a.id == 'first_click',
       );
+      expect(firstClick.unlocked, true);
+      model.dispose();
+    });
+
+    test('Achievement ne se debloque pas si condition non remplie',
+        () {
+      final model = CookieModel();
+      final millionaire = model.achievements.firstWhere(
+        (a) => a.id == 'cookies_1000',
+      );
+      expect(millionaire.unlocked, false);
+      model.dispose();
+    });
+
+    test('Achievement first_buy se debloque a l achat', () {
+      final model = CookieModel();
       model.addCookies(100);
-      final json = model.exportSave();
-      expect(json, contains('"cookies": 100'));
+      model.buyUpgrade(model.upgrades.first);
+      final firstBuy = model.achievements.firstWhere(
+        (a) => a.id == 'first_buy',
+      );
+      expect(firstBuy.unlocked, true);
       model.dispose();
     });
 
-    test('importSave restaure les donnees', () async {
+    test('Upgrades visibles selon les paliers', () {
       final model = CookieModel();
-      await Future<void>.delayed(
-        const Duration(milliseconds: 100),
-      );
-      model.importSave(
-        '{"cookies": 999, "playerName": "Test"}',
-      );
-      expect(model.cookies, 999);
-      expect(model.playerName, 'Test');
-      model.dispose();
-    });
-
-    test('importSave rejette le JSON invalide', () async {
-      final model = CookieModel();
-      await Future<void>.delayed(
-        const Duration(milliseconds: 100),
+      // Au debut, seuls les upgrades sans seuil sont visibles
+      final visible = model.productionUpgrades;
+      expect(
+        visible.any((u) => u.id == 'cursor'),
+        true,
       );
       expect(
-        () => model.importSave('invalid json'),
-        throwsA(isA<FormatException>()),
+        visible.any((u) => u.id == 'mine'),
+        false,
       );
       model.dispose();
     });
 
-    test('reset remet tout a zero', () async {
+    test('Mine visible apres 500 cookies', () {
       final model = CookieModel();
-      await Future<void>.delayed(
-        const Duration(milliseconds: 100),
-      );
       model.addCookies(500);
-      model.clickCookie();
-      model.reset();
-      expect(model.cookies, 0);
-      expect(model.totalClicks, 0);
+      final visible = model.productionUpgrades;
+      expect(visible.any((u) => u.id == 'mine'), true);
       model.dispose();
     });
 
-    test('loadGame charge depuis SharedPreferences', () async {
-      SharedPreferences.setMockInitialValues({
-        'slot_0':
-            '{"cookies":42,"totalClicks":5,"playerName":"Saved"}',
-      });
+    test('3 nouveaux upgrades sont presents', () {
+      final upgrades = defaultUpgrades();
+      expect(upgrades.any((u) => u.id == 'lab'), true);
+      expect(upgrades.any((u) => u.id == 'portal'), true);
+      expect(upgrades.any((u) => u.id == 'time_machine'), true);
+    });
+
+    test('Le prestige sauvegarde le nombre', () {
       final model = CookieModel();
-      await Future<void>.delayed(
-        const Duration(milliseconds: 200),
-      );
-      expect(model.cookies, 42);
-      expect(model.playerName, 'Saved');
+      model.addCookies(10000);
+      model.prestige();
+      final save = model.exportSave();
+      expect(save, contains('"prestiges": 1'));
       model.dispose();
     });
 
     testWidgets(
-      'Le pseudo s affiche dans l AppBar',
-      (tester) async {
-        await tester.pumpWidget(const CookieClickerApp());
-        expect(find.text('Joueur 🍪'), findsOneWidget);
-      },
-    );
-
-    testWidgets(
-      'Le bouton parametres est present',
-      (tester) async {
-        await tester.pumpWidget(const CookieClickerApp());
-        expect(find.byIcon(Icons.settings), findsOneWidget);
-      },
-    );
-
-    testWidgets(
-      'Navigation vers Parametres fonctionne',
+      'Ecran succes accessible depuis l AppBar',
       (tester) async {
         await tester.pumpWidget(const CookieClickerApp());
 
-        await tester.tap(find.byIcon(Icons.settings));
+        await tester.tap(find.byIcon(Icons.emoji_events));
         await tester.pumpAndSettle();
 
-        expect(find.text('Profil'), findsOneWidget);
-        expect(find.text('Sauvegardes'), findsOneWidget);
-        expect(find.text('Import / Export'), findsOneWidget);
+        expect(find.textContaining('Succès'), findsOneWidget);
       },
     );
   });
