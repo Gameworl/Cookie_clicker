@@ -1,113 +1,92 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../models/cookie_model.dart';
+import '../cubit/achievement_cubit.dart';
+import '../cubit/cookie_cubit.dart';
+import '../cubit/cookie_state.dart';
 
-/// Écran des statistiques enrichi.
-///
-/// Affiche les stats détaillées : total clic vs auto,
-/// ratio, CPS, cookies par clic, etc.
+/// Écran des statistiques (Bloc version).
 class StatsScreen extends StatelessWidget {
   const StatsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final model = context.watch<CookieModel>();
-    final total = model.totalFromClicks + model.totalFromAuto;
-    final clickRatio =
-        total > 0
-            ? (model.totalFromClicks / total * 100)
+    return BlocBuilder<CookieCubit, CookieState>(
+      builder: (context, state) {
+        final total = state.totalFromClicks + state.totalFromAuto;
+        final clickRatio = total > 0
+            ? (state.totalFromClicks / total * 100)
                 .toStringAsFixed(1)
             : '0.0';
-    final autoRatio =
-        total > 0
-            ? (model.totalFromAuto / total * 100)
+        final autoRatio = total > 0
+            ? (state.totalFromAuto / total * 100)
                 .toStringAsFixed(1)
             : '0.0';
+        final achState =
+            context.watch<AchievementCubit>().state;
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _StatCard(
-          icon: Icons.cookie,
-          title: 'Cookies actuels',
-          value: model.formattedCookies,
-        ),
-        _StatCard(
-          icon: Icons.touch_app,
-          title: 'Clics total',
-          value: '${model.totalClicks}',
-        ),
-        _StatCard(
-          icon: Icons.ads_click,
-          title: 'Cookies par clic',
-          value: '${model.cookiesPerClick}',
-        ),
-        _StatCard(
-          icon: Icons.speed,
-          title: 'Cookies par seconde',
-          value: '${model.cookiesPerSecond}',
-        ),
-        const Divider(),
-        _StatCard(
-          icon: Icons.mouse,
-          title: 'Total produit par clic',
-          value: '${model.totalFromClicks} ($clickRatio%)',
-        ),
-        _StatCard(
-          icon: Icons.autorenew,
-          title: 'Total produit auto',
-          value: '${model.totalFromAuto} ($autoRatio%)',
-        ),
-        const Divider(),
-        _StatCard(
-          icon: Icons.access_time,
-          title: 'Premier clic',
-          value: model.firstClickAt != null
-              ? _formatDateTime(model.firstClickAt!)
-              : 'Aucun clic',
-        ),
-        _StatCard(
-          icon: Icons.flag,
-          title: 'Prochain palier',
-          value: model.nextMilestone != null
-              ? '${model.nextMilestone} cookies'
-              : 'Tous atteints !',
-        ),
-        _StatCard(
-          icon: Icons.shopping_cart,
-          title: 'Upgrades possédés',
-          value: '${model.upgrades.fold<int>(0, (s, u) => s + u.quantity)}',
-        ),
-        _StatCard(
-          icon: Icons.star,
-          title: 'Prestiges',
-          value: '${model.prestiges}',
-        ),
-        _StatCard(
-          icon: Icons.auto_awesome,
-          title: 'Multiplicateur',
-          value: 'x${model.prestigeMultiplier.toStringAsFixed(1)}',
-        ),
-        _StatCard(
-          icon: Icons.emoji_events,
-          title: 'Succès débloqués',
-          value: '${model.unlockedAchievementCount}'
-              '/${model.achievements.length}',
-        ),
-        if (model.frenzyActive)
-          _StatCard(
-            icon: Icons.bolt,
-            title: 'Frenzy actif',
-            value: '${model.frenzyRemaining}s restantes',
-          ),
-      ],
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _StatCard(
+              icon: Icons.cookie,
+              title: 'Cookies actuels',
+              value: '${state.cookies}',
+            ),
+            _StatCard(
+              icon: Icons.touch_app,
+              title: 'Clics total',
+              value: '${state.totalClicks}',
+            ),
+            _StatCard(
+              icon: Icons.ads_click,
+              title: 'Cookies par clic',
+              value: '${state.cookiesPerClick}',
+            ),
+            _StatCard(
+              icon: Icons.speed,
+              title: 'Cookies par seconde',
+              value: '${state.cookiesPerSecond}',
+            ),
+            const Divider(),
+            _StatCard(
+              icon: Icons.mouse,
+              title: 'Total produit par clic',
+              value: '${state.totalFromClicks} ($clickRatio%)',
+            ),
+            _StatCard(
+              icon: Icons.autorenew,
+              title: 'Total produit auto',
+              value: '${state.totalFromAuto} ($autoRatio%)',
+            ),
+            const Divider(),
+            _StatCard(
+              icon: Icons.star,
+              title: 'Prestiges',
+              value: '${state.prestiges}',
+            ),
+            _StatCard(
+              icon: Icons.auto_awesome,
+              title: 'Multiplicateur',
+              value:
+                  'x${state.prestigeMultiplier.toStringAsFixed(1)}',
+            ),
+            _StatCard(
+              icon: Icons.emoji_events,
+              title: 'Succès débloqués',
+              value: '${achState.unlockedCount}'
+                  '/${achState.achievements.length}',
+            ),
+            _StatCard(
+              icon: Icons.shopping_cart,
+              title: 'Upgrades possédés',
+              value:
+                  '${state.upgrades.fold<int>(0, (s, u) => s + u.quantity)}',
+            ),
+          ],
+        );
+      },
     );
-  }
-
-  String _formatDateTime(DateTime dt) {
-    return '${dt.day}/${dt.month}/${dt.year} '
-        '${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
   }
 }
 

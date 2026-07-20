@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
-import '../models/cookie_model.dart';
+import '../cubit/cookie_cubit.dart';
+import '../cubit/cookie_state.dart';
 
-/// Affiche le compteur de cookies avec animation de transition.
-///
-/// Change de couleur selon le palier atteint.
-/// Utilise [AnimatedSwitcher] pour animer la transition.
+/// Affiche le compteur avec animation et couleur par palier.
 class CookieCounter extends StatelessWidget {
   const CookieCounter({super.key});
+
+  static final _numberFormat = NumberFormat('#,###', 'fr_FR');
 
   Color _counterColor(BuildContext context, int cookies) {
     if (cookies >= 10000) return Colors.purple;
@@ -19,22 +20,35 @@ class CookieCounter extends StatelessWidget {
     return Theme.of(context).colorScheme.onSurface;
   }
 
+  String _format(int cookies) {
+    final formatted =
+        cookies == 0 ? '0' : _numberFormat.format(cookies);
+    return cookies == 1
+        ? '$formatted cookie'
+        : '$formatted cookies';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final model = context.watch<CookieModel>();
-
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
-      child: Text(
-        model.formattedCookies,
-        key: ValueKey<int>(model.cookies),
-        style: Theme.of(context)
-            .textTheme
-            .displayLarge
-            ?.copyWith(
-              color: _counterColor(context, model.cookies),
-            ),
-      ),
+    return BlocBuilder<CookieCubit, CookieState>(
+      builder: (context, state) {
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: Text(
+            _format(state.cookies),
+            key: ValueKey<int>(state.cookies),
+            style: Theme.of(context)
+                .textTheme
+                .displayLarge
+                ?.copyWith(
+                  color: _counterColor(
+                    context,
+                    state.cookies,
+                  ),
+                ),
+          ),
+        );
+      },
     );
   }
 }

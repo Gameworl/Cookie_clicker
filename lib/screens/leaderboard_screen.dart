@@ -2,21 +2,17 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/cookie_model.dart';
+import '../cubit/cookie_cubit.dart';
 import '../models/score.dart';
 import '../services/score_repository.dart';
 
 /// État de chargement du classement.
 enum LoadingState { initial, loading, loaded, error }
 
-/// Écran de classement complet.
-///
-/// Gère le chargement, le cache local, le pull-to-refresh,
-/// l'auto-refresh via [Stream.periodic], le retry avec
-/// backoff exponentiel et le mode offline.
+/// Écran de classement complet (Bloc version).
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
 
@@ -60,7 +56,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final cachedAt = prefs.getString('leaderboard_cached_at');
     if (cached != null) {
       final list = (jsonDecode(cached) as List<dynamic>)
-          .map((e) => Score.fromJson(e as Map<String, dynamic>))
+          .map((e) =>
+              Score.fromJson(e as Map<String, dynamic>))
           .toList();
       if (mounted) {
         setState(() {
@@ -78,7 +75,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       'leaderboard_cache',
-      jsonEncode(scores.map((s) => s.toJson()).toList()),
+      jsonEncode(
+        scores.map((s) => s.toJson()).toList(),
+      ),
     );
     await prefs.setString(
       'leaderboard_cached_at',
@@ -117,13 +116,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   Future<void> _submitScore() async {
     if (_isOffline) return;
-
-    final model = context.read<CookieModel>();
+    final cubit = context.read<CookieCubit>();
     final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController(
-      text: model.playerName,
+    final nameCtrl = TextEditingController(
+      text: cubit.state.playerName,
     );
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -131,7 +128,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         content: Form(
           key: formKey,
           child: TextFormField(
-            controller: nameController,
+            controller: nameCtrl,
             decoration: const InputDecoration(
               labelText: 'Pseudo',
               border: OutlineInputBorder(),
@@ -161,14 +158,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         ],
       ),
     );
-
     if (confirmed != true || !mounted) return;
-
     final score = Score(
-      name: nameController.text,
-      cookies: model.cookies,
+      name: nameCtrl.text,
+      cookies: cubit.state.cookies,
     );
-
     await _submitWithRetry(score);
   }
 
@@ -179,16 +173,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         await repo.submitScore(score);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Score envoyé !'),
-            ),
+            const SnackBar(content: Text('✅ Score envoyé !')),
           );
           _fetchScores();
         }
         return;
       } catch (_) {
         if (attempt < 3) {
-          final delay = Duration(seconds: 1 << (attempt - 1));
+          final delay = Duration(
+            seconds: 1 << (attempt - 1),
+          );
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -204,7 +198,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('❌ Envoi échoué après 3 tentatives'),
+                content: Text(
+                  '❌ Envoi échoué après 3 tentatives',
+                ),
               ),
             );
           }
@@ -227,7 +223,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         );
       case 2:
         return CircleAvatar(
-          backgroundColor: Colors.brown.shade300,
+          backgroundColor: Colors.brown,
           child: const Text('🥉'),
         );
       default:
@@ -237,42 +233,20 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Classement'),
-        centerTitle: true,
-        actions: [
-          if (!_isOffline)
-            IconButton(
-              icon: const Icon(Icons.send),
-              tooltip: 'Envoyer le score',
-              onPressed: _submitScore,
+    return Column(
+      children: [
+        if (_isOffline)
+          Container(
+            width: double.infinity,
+            color: Colors.orange.shade100,
+            padding: const EdgeInsets.all(8),
+            child: const Text(
+              '📡 Mode hors ligne — données en cache',
+              textAlign: TextAlign.center,
             ),
-        ],
-      ),
-      body: Column(
-        children: [
-          if (_isOffline)
-            Container(
-              width: double.infinity,
-              color: Colors.orange.shade100,
-              padding: const EdgeInsets.all(8),
-              child: const Text(
-                '📡 Mode hors ligne — données en cache',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          if (_lastFetched != null && _isOffline)
-            Padding(
-              padding: const EdgeInsets.all(4),
-              child: Text(
-                'Dernière mise à jour : ${_timeAgo(_lastFetched!)}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          Expanded(child: _buildBody()),
-        ],
-      ),
+          ),
+        Expanded(child: _buildBody()),
+      ],
     );
   }
 
@@ -280,7 +254,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     switch (_state) {
       case LoadingState.initial:
       case LoadingState.loading:
-        return const Center(child: CircularProgressIndicator());
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
       case LoadingState.error:
         return Center(
           child: Column(
@@ -318,14 +294,5 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           ),
         );
     }
-  }
-
-  String _timeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'à l\'instant';
-    if (diff.inMinutes < 60) {
-      return 'il y a ${diff.inMinutes} min';
-    }
-    return 'il y a ${diff.inHours}h';
   }
 }
