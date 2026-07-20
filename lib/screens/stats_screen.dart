@@ -3,16 +3,27 @@ import 'package:provider/provider.dart';
 
 import '../models/cookie_model.dart';
 
-/// Écran des statistiques du joueur.
+/// Écran des statistiques enrichi.
 ///
-/// Affiche les stats de jeu : cookies, clics, CPS,
-/// cookies par clic et le prochain palier.
+/// Affiche les stats détaillées : total clic vs auto,
+/// ratio, CPS, cookies par clic, etc.
 class StatsScreen extends StatelessWidget {
   const StatsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final model = context.watch<CookieModel>();
+    final total = model.totalFromClicks + model.totalFromAuto;
+    final clickRatio =
+        total > 0
+            ? (model.totalFromClicks / total * 100)
+                .toStringAsFixed(1)
+            : '0.0';
+    final autoRatio =
+        total > 0
+            ? (model.totalFromAuto / total * 100)
+                .toStringAsFixed(1)
+            : '0.0';
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -37,6 +48,18 @@ class StatsScreen extends StatelessWidget {
           title: 'Cookies par seconde',
           value: '${model.cookiesPerSecond}',
         ),
+        const Divider(),
+        _StatCard(
+          icon: Icons.mouse,
+          title: 'Total produit par clic',
+          value: '${model.totalFromClicks} ($clickRatio%)',
+        ),
+        _StatCard(
+          icon: Icons.autorenew,
+          title: 'Total produit auto',
+          value: '${model.totalFromAuto} ($autoRatio%)',
+        ),
+        const Divider(),
         _StatCard(
           icon: Icons.access_time,
           title: 'Premier clic',
@@ -56,6 +79,12 @@ class StatsScreen extends StatelessWidget {
           title: 'Upgrades possédés',
           value: '${model.upgrades.fold<int>(0, (s, u) => s + u.quantity)}',
         ),
+        if (model.frenzyActive)
+          _StatCard(
+            icon: Icons.bolt,
+            title: 'Frenzy actif',
+            value: '${model.frenzyRemaining}s restantes',
+          ),
       ],
     );
   }

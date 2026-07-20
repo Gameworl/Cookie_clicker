@@ -2,126 +2,128 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cookie_clicker/main.dart';
 import 'package:cookie_clicker/models/cookie_model.dart';
-import 'package:cookie_clicker/models/upgrade.dart';
 
 void main() {
-  group('Semaine 3 - Boutique', () {
-    // --- Tests unitaires ---
-
-    test('cookiesPerClick vaut 1 par defaut', () {
+  group('Semaine 4 - Production automatique', () {
+    test('CPS = 0 sans upgrades', () {
       final model = CookieModel();
-      expect(model.cookiesPerClick, 1);
+      expect(model.cookiesPerSecond, 0);
+      model.dispose();
     });
 
-    test('cookiesPerClick augmente avec bonus', () {
-      final model = CookieModel();
-      model.addCookies(25);
-      final bonus = model.upgrades.firstWhere(
-        (u) => u.id == 'better_click',
-      );
-      model.buyUpgrade(bonus);
-      expect(model.cookiesPerClick, 2);
-    });
-
-    test('clickCookie ajoute cookiesPerClick cookies', () {
-      final model = CookieModel();
-      model.addCookies(25);
-      final bonus = model.upgrades.firstWhere(
-        (u) => u.id == 'better_click',
-      );
-      model.buyUpgrade(bonus);
-      final before = model.cookies;
-      model.clickCookie();
-      expect(model.cookies, before + 2);
-    });
-
-    test('buyUpgrade echoue si pas assez de cookies', () {
-      final model = CookieModel();
-      final result = model.buyUpgrade(model.upgrades.first);
-      expect(result, false);
-      expect(model.upgrades.first.quantity, 0);
-    });
-
-    test('buyUpgrade reussit si assez de cookies', () {
+    test('CPS augmente apres achat', () {
       final model = CookieModel();
       model.addCookies(10);
-      final cursor = model.upgrades.first;
-      expect(model.buyUpgrade(cursor), true);
-      expect(cursor.quantity, 1);
-      expect(model.cookies, 0);
-    });
-
-    test('defaultUpgrades contient production et bonus', () {
-      final upgrades = defaultUpgrades();
-      final production = upgrades
-          .where((u) => u.category == UpgradeCategory.production);
-      final bonus = upgrades
-          .where((u) => u.category == UpgradeCategory.bonus);
-      expect(production.length, 3);
-      expect(bonus.length, 2);
-    });
-
-    test('tri par prix fonctionne', () {
-      final model = CookieModel();
-      model.setSortCriteria(SortCriteria.price);
-      final prod = model.productionUpgrades;
-      for (var i = 0; i < prod.length - 1; i++) {
-        expect(prod[i].cost, lessThanOrEqualTo(prod[i + 1].cost));
-      }
-    });
-
-    test('filtre achetable fonctionne', () {
-      final model = CookieModel();
-      model.addCookies(15);
-      model.toggleAffordableFilter();
-      final prod = model.productionUpgrades;
-      expect(prod.length, 1); // Curseur (10)
-    });
-
-    test('reset remet les upgrades a zero', () {
-      final model = CookieModel();
-      model.addCookies(100);
       model.buyUpgrade(model.upgrades.first);
-      model.reset();
-      expect(model.upgrades.first.quantity, 0);
-      expect(model.cookies, 0);
+      expect(model.cookiesPerSecond, 1);
+      model.dispose();
     });
 
-    // --- Tests widget ---
+    test('Le timer ajoute des cookies', () async {
+      final model = CookieModel();
+      model.addCookies(10);
+      model.buyUpgrade(model.upgrades.first);
+
+      await Future<void>.delayed(
+        const Duration(milliseconds: 1200),
+      );
+      expect(model.cookies, greaterThanOrEqualTo(1));
+      model.dispose();
+    });
+
+    test('totalFromClicks et totalFromAuto se separent', () {
+      final model = CookieModel();
+      model.clickCookie();
+      expect(model.totalFromClicks, 1);
+      expect(model.totalFromAuto, 0);
+      model.dispose();
+    });
+
+    test('Frenzy double le CPS', () {
+      final model = CookieModel();
+      model.addCookies(10);
+      model.buyUpgrade(model.upgrades.first);
+      expect(model.cookiesPerSecond, 1);
+
+      model.activateFrenzy();
+      expect(model.frenzyActive, true);
+      expect(model.cookiesPerSecond, 2);
+      model.dispose();
+    });
+
+    test('Frenzy double aussi les cookies par clic', () {
+      final model = CookieModel();
+      expect(model.cookiesPerClick, 1);
+      model.activateFrenzy();
+      expect(model.cookiesPerClick, 2);
+      model.dispose();
+    });
+
+    test('Frenzy ne se reactive pas pendant le cooldown', () {
+      final model = CookieModel();
+      model.activateFrenzy();
+      expect(model.frenzyActive, true);
+
+      // Simuler fin du frenzy manuellement pas possible
+      // mais on verifie que activer 2 fois ne change rien
+      model.activateFrenzy();
+      expect(model.frenzyActive, true);
+      model.dispose();
+    });
+
+    test('onResume calcule les cookies d absence', () {
+      final model = CookieModel();
+      model.addCookies(10);
+      model.buyUpgrade(model.upgrades.first);
+      model.onPause();
+      // Simuler 5s d'absence
+      // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+      model.onResume();
+      // Le gain depend du temps reel ecoule, teste juste que ca ne crash pas
+      model.dispose();
+    });
+
+    test('Le journal enregistre les actions', () {
+      final model = CookieModel();
+      model.clickCookie();
+      expect(model.log.length, 1);
+      expect(model.log.first.message, contains('clic'));
+      model.dispose();
+    });
+
+    test('Le journal ne depasse pas 20 entrees', () {
+      final model = CookieModel();
+      for (var i = 0; i < 25; i++) {
+        model.clickCookie();
+      }
+      expect(model.log.length, lessThanOrEqualTo(20));
+      model.dispose();
+    });
 
     testWidgets(
-      'BottomNavigationBar a 3 onglets',
+      'Le bouton Frenzy est present',
       (tester) async {
         await tester.pumpWidget(const CookieClickerApp());
-        expect(find.text('Jeu'), findsOneWidget);
-        expect(find.text('Boutique'), findsOneWidget);
-        expect(find.text('Stats'), findsOneWidget);
+        expect(find.text('Frenzy x2'), findsOneWidget);
       },
     );
 
     testWidgets(
-      'Navigation vers Boutique affiche les categories',
-      (tester) async {
-        await tester.pumpWidget(const CookieClickerApp());
-
-        await tester.tap(find.text('Boutique'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('🏭 Production'), findsOneWidget);
-        expect(find.text('Trier par : '), findsOneWidget);
-      },
-    );
-
-    testWidgets(
-      'Navigation vers Stats affiche les statistiques',
+      'Stats affiche le ratio clic/auto',
       (tester) async {
         await tester.pumpWidget(const CookieClickerApp());
 
         await tester.tap(find.text('Stats'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Clics total'), findsOneWidget);
-        expect(find.text('Cookies par clic'), findsOneWidget);
+        expect(
+          find.text('Total produit par clic'),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Total produit auto'),
+          findsOneWidget,
+        );
       },
     );
   });

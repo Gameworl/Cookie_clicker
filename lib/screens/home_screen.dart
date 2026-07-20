@@ -7,10 +7,8 @@ import '../models/cookie_model.dart';
 import '../widgets/cookie_button.dart';
 import '../widgets/cookie_counter.dart';
 
-/// Page de jeu principale (contenu sans Scaffold).
-///
-/// Affiche le compteur, le cookie cliquable, le CPS
-/// et le bouton bonus avec cooldown.
+/// Page de jeu principale avec production automatique,
+/// frenzy x2 et gestion du cycle de vie.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -18,17 +16,52 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver {
   static const _bonusAmount = 10;
   static const _bonusCooldownSeconds = 30;
-
   int _cooldownRemaining = 0;
   Timer? _cooldownTimer;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cooldownTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final model = context.read<CookieModel>();
+    if (state == AppLifecycleState.paused) {
+      model.onPause();
+    } else if (state == AppLifecycleState.resumed) {
+      final gained = model.onResume();
+      if (gained != null && gained > 0 && mounted) {
+        showDialog<void>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Bon retour !'),
+            content: Text(
+              'Pendant ton absence, tu as gagné '
+              '$gained cookies !',
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Super !'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   void _onCookieClick() {
@@ -82,44 +115,111 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CookieCounter(),
-            const SizedBox(height: 4),
-            Text(
-              '${model.cookiesPerSecond} cookies/s '
-              '· ${model.cookiesPerClick} cookies/clic',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Colors.grey),
-            ),
-            if (model.nextMilestone != null) ...[
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 16),
+              const CookieCounter(),
               const SizedBox(height: 4),
-              Text(
-                'Prochain palier : ${model.nextMilestone}',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Colors.grey),
+              // CPS avec AnimatedSwitcher
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Text(
+                  '${model.cookiesPerSecond} cookies/s '
+                  '· ${model.cookiesPerClick} cookies/clic',
+                  key: ValueKey(
+                    '${model.cookiesPerSecond}_${model.cookiesPerClick}',
+                  ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(
+                        color: model.frenzyActive
+                            ? Colors.orange
+                            : Colors.grey,
+                      ),
+                ),
               ),
+              if (model.frenzyActive) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '⚡ FRENZY x2 (${model.frenzyRemaining}s)',
+                  style: const TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 64,
+                  ),
+                  child: LinearProgressIndicator(
+                    value: model.frenzyRemaining /
+                        CookieModel.frenzyDuration,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              CookieButton(onTap: _onCookieClick),
+              const SizedBox(height: 20),
+              // Boutons d'action
+              Wrap(
+                spacing: 12,
+                children: [
+                  FilledButton.icon(
+                    onPressed: _cooldownRemaining > 0
+                        ? null
+                        : _onBonusClick,
+                    icon: const Icon(Icons.card_giftcard),
+                    label: Text(
+                      _cooldownRemaining > 0
+                          ? 'Bonus (${_cooldownRemaining}s)'
+                          : 'Bonus +$_bonusAmount',
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: model.frenzyActive ||
+                            model.frenzyCooldownRemaining > 0
+                        ? null
+                        : () => model.activateFrenzy(),
+                    icon: const Icon(Icons.bolt),
+                    label: Text(
+                      model.frenzyCooldownRemaining > 0
+                          ? 'Frenzy (${model.frenzyCooldownRemaining}s)'
+                          : 'Frenzy x2',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Journal des dernières actions
+              if (model.log.isNotEmpty)
+                ExpansionTile(
+                  title: const Text('📋 Journal'),
+                  children: model.log
+                      .take(10)
+                      .map(
+                        (e) => ListTile(
+                          dense: true,
+                          title: Text(e.message),
+                          trailing: Text(
+                            '${e.time.hour}:'
+                            '${e.time.minute.toString().padLeft(2, '0')}:'
+                            '${e.time.second.toString().padLeft(2, '0')}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              const SizedBox(height: 16),
             ],
-            const SizedBox(height: 32),
-            CookieButton(onTap: _onCookieClick),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _cooldownRemaining > 0
-                  ? null
-                  : _onBonusClick,
-              icon: const Icon(Icons.card_giftcard),
-              label: Text(
-                _cooldownRemaining > 0
-                    ? 'Bonus (${_cooldownRemaining}s)'
-                    : 'Bonus +$_bonusAmount 🍪',
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
