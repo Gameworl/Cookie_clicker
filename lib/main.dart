@@ -5,9 +5,12 @@ import 'models/cookie_model.dart';
 import 'models/theme_model.dart';
 import 'screens/achievements_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/leaderboard_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/shop_screen.dart';
 import 'screens/stats_screen.dart';
+import 'services/api_score_repository.dart';
+import 'services/score_repository.dart';
 
 void main() {
   runApp(const CookieClickerApp());
@@ -26,6 +29,9 @@ class CookieClickerApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => CookieModel()),
         ChangeNotifierProvider(create: (_) => ThemeModel()),
+        Provider<ScoreRepository>(
+          create: (_) => ApiScoreRepository(),
+        ),
       ],
       child: Consumer<ThemeModel>(
         builder: (context, themeModel, _) {
@@ -89,10 +95,11 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  static const _pages = [
+  static const _pages = <Widget>[
     HomeScreen(),
     ShopScreen(),
     StatsScreen(),
+    LeaderboardScreen(),
   ];
 
   @override
@@ -157,21 +164,26 @@ class _MainShellState extends State<MainShell> {
         index: _currentIndex,
         children: _pages,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
-        items: const [
-          BottomNavigationBarItem(
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (i) =>
+            setState(() => _currentIndex = i),
+        destinations: const [
+          NavigationDestination(
             icon: Icon(Icons.cookie),
             label: 'Jeu',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.store),
             label: 'Boutique',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.bar_chart),
             label: 'Stats',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.leaderboard),
+            label: 'Classement',
           ),
         ],
       ),
