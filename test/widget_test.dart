@@ -2,125 +2,126 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cookie_clicker/main.dart';
 import 'package:cookie_clicker/models/cookie_model.dart';
-import 'package:cookie_clicker/models/theme_model.dart';
+import 'package:cookie_clicker/models/upgrade.dart';
 
 void main() {
-  group('Semaine 2 - Provider', () {
-    // --- Tests unitaires CookieModel ---
+  group('Semaine 3 - Boutique', () {
+    // --- Tests unitaires ---
 
-    test('CookieModel demarre a 0', () {
+    test('cookiesPerClick vaut 1 par defaut', () {
       final model = CookieModel();
-      expect(model.cookies, 0);
-      expect(model.totalClicks, 0);
-      expect(model.firstClickAt, isNull);
+      expect(model.cookiesPerClick, 1);
     });
 
-    test('clickCookie incremente cookies et totalClicks', () {
+    test('cookiesPerClick augmente avec bonus', () {
       final model = CookieModel();
+      model.addCookies(25);
+      final bonus = model.upgrades.firstWhere(
+        (u) => u.id == 'better_click',
+      );
+      model.buyUpgrade(bonus);
+      expect(model.cookiesPerClick, 2);
+    });
+
+    test('clickCookie ajoute cookiesPerClick cookies', () {
+      final model = CookieModel();
+      model.addCookies(25);
+      final bonus = model.upgrades.firstWhere(
+        (u) => u.id == 'better_click',
+      );
+      model.buyUpgrade(bonus);
+      final before = model.cookies;
       model.clickCookie();
-      expect(model.cookies, 1);
-      expect(model.totalClicks, 1);
-      expect(model.firstClickAt, isNotNull);
+      expect(model.cookies, before + 2);
     });
 
-    test('addCookies ajoute le bon montant', () {
+    test('buyUpgrade echoue si pas assez de cookies', () {
+      final model = CookieModel();
+      final result = model.buyUpgrade(model.upgrades.first);
+      expect(result, false);
+      expect(model.upgrades.first.quantity, 0);
+    });
+
+    test('buyUpgrade reussit si assez de cookies', () {
       final model = CookieModel();
       model.addCookies(10);
-      expect(model.cookies, 10);
-    });
-
-    test('reset remet tout a zero', () {
-      final model = CookieModel();
-      model.clickCookie();
-      model.clickCookie();
-      model.reset();
+      final cursor = model.upgrades.first;
+      expect(model.buyUpgrade(cursor), true);
+      expect(cursor.quantity, 1);
       expect(model.cookies, 0);
-      expect(model.totalClicks, 0);
-      expect(model.firstClickAt, isNull);
     });
 
-    test('formattedCookies gere le singulier', () {
-      final model = CookieModel();
-      model.clickCookie();
-      expect(model.formattedCookies, '1 cookie');
+    test('defaultUpgrades contient production et bonus', () {
+      final upgrades = defaultUpgrades();
+      final production = upgrades
+          .where((u) => u.category == UpgradeCategory.production);
+      final bonus = upgrades
+          .where((u) => u.category == UpgradeCategory.bonus);
+      expect(production.length, 3);
+      expect(bonus.length, 2);
     });
 
-    test('formattedCookies gere le pluriel', () {
+    test('tri par prix fonctionne', () {
       final model = CookieModel();
-      expect(model.formattedCookies, '0 cookies');
-      model.addCookies(5);
-      expect(model.formattedCookies, '5 cookies');
+      model.setSortCriteria(SortCriteria.price);
+      final prod = model.productionUpgrades;
+      for (var i = 0; i < prod.length - 1; i++) {
+        expect(prod[i].cost, lessThanOrEqualTo(prod[i + 1].cost));
+      }
     });
 
-    test('nextMilestone retourne le bon palier', () {
+    test('filtre achetable fonctionne', () {
       final model = CookieModel();
-      expect(model.nextMilestone, 100);
+      model.addCookies(15);
+      model.toggleAffordableFilter();
+      final prod = model.productionUpgrades;
+      expect(prod.length, 1); // Curseur (10)
+    });
+
+    test('reset remet les upgrades a zero', () {
+      final model = CookieModel();
       model.addCookies(100);
-      expect(model.nextMilestone, 500);
-      model.addCookies(9900);
-      expect(model.nextMilestone, isNull);
-    });
-
-    test('clickCookie retourne le palier atteint', () {
-      final model = CookieModel();
-      model.addCookies(99);
-      final milestone = model.clickCookie();
-      expect(milestone, 100);
-    });
-
-    // --- Tests unitaires ThemeModel ---
-
-    test('ThemeModel demarre en light', () {
-      final model = ThemeModel();
-      expect(model.themeMode, ThemeMode.light);
-    });
-
-    test('toggleTheme bascule en dark puis light', () {
-      final model = ThemeModel();
-      model.toggleTheme();
-      expect(model.themeMode, ThemeMode.dark);
-      model.toggleTheme();
-      expect(model.themeMode, ThemeMode.light);
+      model.buyUpgrade(model.upgrades.first);
+      model.reset();
+      expect(model.upgrades.first.quantity, 0);
+      expect(model.cookies, 0);
     });
 
     // --- Tests widget ---
 
     testWidgets(
-      'Le Drawer s ouvre et contient les liens',
+      'BottomNavigationBar a 3 onglets',
       (tester) async {
         await tester.pumpWidget(const CookieClickerApp());
-
-        // Ouvrir le drawer
-        await tester.tap(find.byIcon(Icons.menu));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Accueil'), findsOneWidget);
-        expect(find.text('Statistiques'), findsOneWidget);
-        expect(find.text('À propos'), findsOneWidget);
-        expect(find.text('Mode sombre'), findsOneWidget);
+        expect(find.text('Jeu'), findsOneWidget);
+        expect(find.text('Boutique'), findsOneWidget);
+        expect(find.text('Stats'), findsOneWidget);
       },
     );
 
     testWidgets(
-      'Navigation vers Statistiques fonctionne',
+      'Navigation vers Boutique affiche les categories',
       (tester) async {
         await tester.pumpWidget(const CookieClickerApp());
 
-        await tester.tap(find.byIcon(Icons.menu));
+        await tester.tap(find.text('Boutique'));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Statistiques'));
+        expect(find.text('🏭 Production'), findsOneWidget);
+        expect(find.text('Trier par : '), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Navigation vers Stats affiche les statistiques',
+      (tester) async {
+        await tester.pumpWidget(const CookieClickerApp());
+
+        await tester.tap(find.text('Stats'));
         await tester.pumpAndSettle();
 
         expect(find.text('Clics total'), findsOneWidget);
-      },
-    );
-
-    testWidgets(
-      'Le bouton bonus est present',
-      (tester) async {
-        await tester.pumpWidget(const CookieClickerApp());
-        expect(find.text('Bonus +10 🍪'), findsOneWidget);
+        expect(find.text('Cookies par clic'), findsOneWidget);
       },
     );
   });

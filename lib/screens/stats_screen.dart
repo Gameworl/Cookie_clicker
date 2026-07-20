@@ -5,8 +5,8 @@ import '../models/cookie_model.dart';
 
 /// Écran des statistiques du joueur.
 ///
-/// Affiche le total de cookies, le nombre de clics,
-/// la date du premier clic et le prochain palier.
+/// Affiche les stats de jeu : cookies, clics, CPS,
+/// cookies par clic et le prochain palier.
 class StatsScreen extends StatelessWidget {
   const StatsScreen({super.key});
 
@@ -14,45 +14,49 @@ class StatsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final model = context.watch<CookieModel>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Statistiques'),
-        centerTitle: true,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _StatCard(
-            icon: Icons.cookie,
-            title: 'Cookies actuels',
-            value: model.formattedCookies,
-          ),
-          _StatCard(
-            icon: Icons.touch_app,
-            title: 'Clics total',
-            value: '${model.totalClicks}',
-          ),
-          _StatCard(
-            icon: Icons.mouse,
-            title: 'Cookies par clic',
-            value: '1',
-          ),
-          _StatCard(
-            icon: Icons.access_time,
-            title: 'Premier clic',
-            value: model.firstClickAt != null
-                ? _formatDateTime(model.firstClickAt!)
-                : 'Aucun clic',
-          ),
-          _StatCard(
-            icon: Icons.flag,
-            title: 'Prochain palier',
-            value: model.nextMilestone != null
-                ? '${model.nextMilestone} cookies'
-                : 'Tous atteints !',
-          ),
-        ],
-      ),
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _StatCard(
+          icon: Icons.cookie,
+          title: 'Cookies actuels',
+          value: model.formattedCookies,
+        ),
+        _StatCard(
+          icon: Icons.touch_app,
+          title: 'Clics total',
+          value: '${model.totalClicks}',
+        ),
+        _StatCard(
+          icon: Icons.ads_click,
+          title: 'Cookies par clic',
+          value: '${model.cookiesPerClick}',
+        ),
+        _StatCard(
+          icon: Icons.speed,
+          title: 'Cookies par seconde',
+          value: '${model.cookiesPerSecond}',
+        ),
+        _StatCard(
+          icon: Icons.access_time,
+          title: 'Premier clic',
+          value: model.firstClickAt != null
+              ? _formatDateTime(model.firstClickAt!)
+              : 'Aucun clic',
+        ),
+        _StatCard(
+          icon: Icons.flag,
+          title: 'Prochain palier',
+          value: model.nextMilestone != null
+              ? '${model.nextMilestone} cookies'
+              : 'Tous atteints !',
+        ),
+        _StatCard(
+          icon: Icons.shopping_cart,
+          title: 'Upgrades possédés',
+          value: '${model.upgrades.fold<int>(0, (s, u) => s + u.quantity)}',
+        ),
+      ],
     );
   }
 
