@@ -5,6 +5,7 @@ import 'models/cookie_model.dart';
 import 'models/theme_model.dart';
 import 'screens/about_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/settings_screen.dart';
 import 'screens/shop_screen.dart';
 import 'screens/stats_screen.dart';
 
@@ -94,39 +95,32 @@ class _MainShellState extends State<MainShell> {
     StatsScreen(),
   ];
 
-  void _showResetDialog() {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Recommencer ?'),
-        content: const Text(
-          'Tu vas perdre tous tes cookies et '
-          'tes améliorations.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () {
-              context.read<CookieModel>().reset();
-              Navigator.pop(ctx);
-            },
-            child: const Text('Confirmer'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final model = context.watch<CookieModel>();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Clicky Cookie 🍪'),
+        title: Text('${model.playerName} 🍪'),
         centerTitle: true,
         actions: [
+          // Indicateur de sauvegarde
+          ValueListenableBuilder<bool>(
+            valueListenable: model.savingNotifier,
+            builder: (_, saving, __) {
+              if (!saving) return const SizedBox.shrink();
+              return const Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.brightness_6),
             tooltip: 'Changer le thème',
@@ -134,21 +128,16 @@ class _MainShellState extends State<MainShell> {
                 context.read<ThemeModel>().toggleTheme(),
           ),
           IconButton(
-            icon: const Icon(Icons.info_outline),
-            tooltip: 'À propos',
+            icon: const Icon(Icons.settings),
+            tooltip: 'Paramètres',
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const AboutScreen(),
+                  builder: (_) => const SettingsScreen(),
                 ),
               );
             },
-          ),
-          IconButton(
-            icon: const Icon(Icons.restart_alt),
-            tooltip: 'Recommencer',
-            onPressed: _showResetDialog,
           ),
         ],
       ),

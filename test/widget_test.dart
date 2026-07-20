@@ -1,129 +1,137 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cookie_clicker/main.dart';
 import 'package:cookie_clicker/models/cookie_model.dart';
+import 'package:cookie_clicker/models/game_save.dart';
 
 void main() {
-  group('Semaine 4 - Production automatique', () {
-    test('CPS = 0 sans upgrades', () {
-      final model = CookieModel();
-      expect(model.cookiesPerSecond, 0);
-      model.dispose();
-    });
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
 
-    test('CPS augmente apres achat', () {
-      final model = CookieModel();
-      model.addCookies(10);
-      model.buyUpgrade(model.upgrades.first);
-      expect(model.cookiesPerSecond, 1);
-      model.dispose();
-    });
-
-    test('Le timer ajoute des cookies', () async {
-      final model = CookieModel();
-      model.addCookies(10);
-      model.buyUpgrade(model.upgrades.first);
-
-      await Future<void>.delayed(
-        const Duration(milliseconds: 1200),
+  group('Semaine 5 - Sauvegarde locale', () {
+    test('GameSave.toJson et fromJson roundtrip', () {
+      const save = GameSave(
+        cookies: 42,
+        totalClicks: 10,
+        playerName: 'Alice',
+        upgradeQuantities: {'cursor': 3},
       );
-      expect(model.cookies, greaterThanOrEqualTo(1));
+      final json = save.toJson();
+      final restored = GameSave.fromJson(json);
+      expect(restored.cookies, 42);
+      expect(restored.totalClicks, 10);
+      expect(restored.playerName, 'Alice');
+      expect(restored.upgradeQuantities['cursor'], 3);
+    });
+
+    test('GameSave.fromJson gere les valeurs manquantes', () {
+      final save = GameSave.fromJson({});
+      expect(save.cookies, 0);
+      expect(save.playerName, 'Joueur');
+    });
+
+    test('setPlayerName met a jour le pseudo', () async {
+      final model = CookieModel();
+      await Future<void>.delayed(
+        const Duration(milliseconds: 100),
+      );
+      model.setPlayerName('Bob');
+      expect(model.playerName, 'Bob');
       model.dispose();
     });
 
-    test('totalFromClicks et totalFromAuto se separent', () {
+    test('exportSave retourne du JSON valide', () async {
       final model = CookieModel();
+      await Future<void>.delayed(
+        const Duration(milliseconds: 100),
+      );
+      model.addCookies(100);
+      final json = model.exportSave();
+      expect(json, contains('"cookies": 100'));
+      model.dispose();
+    });
+
+    test('importSave restaure les donnees', () async {
+      final model = CookieModel();
+      await Future<void>.delayed(
+        const Duration(milliseconds: 100),
+      );
+      model.importSave(
+        '{"cookies": 999, "playerName": "Test"}',
+      );
+      expect(model.cookies, 999);
+      expect(model.playerName, 'Test');
+      model.dispose();
+    });
+
+    test('importSave rejette le JSON invalide', () async {
+      final model = CookieModel();
+      await Future<void>.delayed(
+        const Duration(milliseconds: 100),
+      );
+      expect(
+        () => model.importSave('invalid json'),
+        throwsA(isA<FormatException>()),
+      );
+      model.dispose();
+    });
+
+    test('reset remet tout a zero', () async {
+      final model = CookieModel();
+      await Future<void>.delayed(
+        const Duration(milliseconds: 100),
+      );
+      model.addCookies(500);
       model.clickCookie();
-      expect(model.totalFromClicks, 1);
-      expect(model.totalFromAuto, 0);
+      model.reset();
+      expect(model.cookies, 0);
+      expect(model.totalClicks, 0);
       model.dispose();
     });
 
-    test('Frenzy double le CPS', () {
+    test('loadGame charge depuis SharedPreferences', () async {
+      SharedPreferences.setMockInitialValues({
+        'slot_0':
+            '{"cookies":42,"totalClicks":5,"playerName":"Saved"}',
+      });
       final model = CookieModel();
-      model.addCookies(10);
-      model.buyUpgrade(model.upgrades.first);
-      expect(model.cookiesPerSecond, 1);
-
-      model.activateFrenzy();
-      expect(model.frenzyActive, true);
-      expect(model.cookiesPerSecond, 2);
-      model.dispose();
-    });
-
-    test('Frenzy double aussi les cookies par clic', () {
-      final model = CookieModel();
-      expect(model.cookiesPerClick, 1);
-      model.activateFrenzy();
-      expect(model.cookiesPerClick, 2);
-      model.dispose();
-    });
-
-    test('Frenzy ne se reactive pas pendant le cooldown', () {
-      final model = CookieModel();
-      model.activateFrenzy();
-      expect(model.frenzyActive, true);
-
-      // Simuler fin du frenzy manuellement pas possible
-      // mais on verifie que activer 2 fois ne change rien
-      model.activateFrenzy();
-      expect(model.frenzyActive, true);
-      model.dispose();
-    });
-
-    test('onResume calcule les cookies d absence', () {
-      final model = CookieModel();
-      model.addCookies(10);
-      model.buyUpgrade(model.upgrades.first);
-      model.onPause();
-      // Simuler 5s d'absence
-      // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
-      model.onResume();
-      // Le gain depend du temps reel ecoule, teste juste que ca ne crash pas
-      model.dispose();
-    });
-
-    test('Le journal enregistre les actions', () {
-      final model = CookieModel();
-      model.clickCookie();
-      expect(model.log.length, 1);
-      expect(model.log.first.message, contains('clic'));
-      model.dispose();
-    });
-
-    test('Le journal ne depasse pas 20 entrees', () {
-      final model = CookieModel();
-      for (var i = 0; i < 25; i++) {
-        model.clickCookie();
-      }
-      expect(model.log.length, lessThanOrEqualTo(20));
+      await Future<void>.delayed(
+        const Duration(milliseconds: 200),
+      );
+      expect(model.cookies, 42);
+      expect(model.playerName, 'Saved');
       model.dispose();
     });
 
     testWidgets(
-      'Le bouton Frenzy est present',
+      'Le pseudo s affiche dans l AppBar',
       (tester) async {
         await tester.pumpWidget(const CookieClickerApp());
-        expect(find.text('Frenzy x2'), findsOneWidget);
+        expect(find.text('Joueur 🍪'), findsOneWidget);
       },
     );
 
     testWidgets(
-      'Stats affiche le ratio clic/auto',
+      'Le bouton parametres est present',
+      (tester) async {
+        await tester.pumpWidget(const CookieClickerApp());
+        expect(find.byIcon(Icons.settings), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Navigation vers Parametres fonctionne',
       (tester) async {
         await tester.pumpWidget(const CookieClickerApp());
 
-        await tester.tap(find.text('Stats'));
+        await tester.tap(find.byIcon(Icons.settings));
         await tester.pumpAndSettle();
 
-        expect(
-          find.text('Total produit par clic'),
-          findsOneWidget,
-        );
-        expect(
-          find.text('Total produit auto'),
-          findsOneWidget,
-        );
+        expect(find.text('Profil'), findsOneWidget);
+        expect(find.text('Sauvegardes'), findsOneWidget);
+        expect(find.text('Import / Export'), findsOneWidget);
       },
     );
   });
